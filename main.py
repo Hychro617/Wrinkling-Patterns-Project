@@ -16,14 +16,13 @@ class Conditions:
         self.Lx, self.Ly = Lx, Ly
         self.N = resolution
 
-        # Spatial grid
         x = np.linspace(0, Lx, self.N)
         y = np.linspace(0, Ly, self.N)
         self.dx = Lx / (self.N - 1)
         self.dy = Ly / (self.N - 1)
-        self.mesh = np.meshgrid(x, y, indexing='ij')  # Important for FFT
+        self.mesh = np.meshgrid(x, y, indexing='ij') 
 
-        # Wavenumbers
+        # wavenumbers
         kx = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dx)
         ky = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dy)
         kx, ky = np.meshgrid(kx, ky, indexing='ij')
@@ -31,24 +30,22 @@ class Conditions:
         return self.mesh
 
     def initial_condition(self):
-        # Small random noise
-        u = np.random.uniform(-0.1, 0.1, (self.N, self.N))
+        # small random
+        u = np.random.uniform(-np.sqrt(self.epsilon), np.sqrt(self.epsilon), (self.N, self.N))
         return u
 
     def linear(self):
-        # Linear operator in Fourier space
+        # linear operator
         L = self.epsilon - (1 - self.k2)**2
         return L
 
     def nonlinear(self, u):
-        # Nonlinear term in Fourier space (cubic only)
+        # nonlinear term
         N_hat = np.fft.fft2(-self.g * u**3)
         return N_hat
 
 
-# ----------------------
-# Initialize simulation
-# ----------------------
+#Simulating initialising
 cond = Conditions()
 epsilon, delta, g = cond.parameters(0, 1)
 cond.domain(Lx=100, Ly=100, resolution=1024)
@@ -58,13 +55,11 @@ u_hat = np.fft.fft2(u)
 linear = cond.linear()
 
 # Simulation parameters
-dt = 0.001   # slightly larger for efficiency
-T = 1000.0    # shorter for testing
+dt = 0.001   
+T = 1000.0    
 steps = int(T / dt)
 
-# ----------------------
-# Visualization setup
-# ----------------------
+#setting up plots
 plt.ion()
 fig, ax = plt.subplots()
 im = ax.imshow(u, cmap="RdBu", origin="lower", interpolation="bilinear",
@@ -73,9 +68,7 @@ fig.colorbar(im, ax=ax)
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 
-# ----------------------
-# Simulation loop
-# ----------------------
+#simulation
 for i in range(steps):
     u = np.fft.ifft2(u_hat).real
     N_hat = cond.nonlinear(u)
@@ -90,9 +83,7 @@ for i in range(steps):
 plt.ioff()
 plt.show()
 
-# ----------------------
-# Final pattern analysis
-# ----------------------
+#plotting
 final_u = np.fft.ifft2(u_hat).real
 
 plt.figure(figsize=(10, 4))
