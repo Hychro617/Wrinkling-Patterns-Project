@@ -1,5 +1,5 @@
 # Generating-Turing-Patterns
-A project where we are generating Turing patterns using the Swift-Hohenberg Equation and periodic boundary conditions.
+In this project we are generating Turing patterns using the Swift-Hohenberg Equation and periodic boundary conditions.
 
 Swift Hohenberg equation 
 $\frac{\partial u}{\partial t} = a_1 u - b_1 \nabla^2 u - \nabla^4 u + \mathcal{N(u)}$
