@@ -55,7 +55,7 @@ u_hat = np.fft.fft2(u)
 linear = cond.linear()
 
 # Simulation parameters
-dt = 0.001   
+dt = 0.001   # take it high value = 0.1 
 T = 1000.0    
 steps = int(T / dt)
 
