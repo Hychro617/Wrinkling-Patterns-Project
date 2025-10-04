@@ -48,7 +48,7 @@ class Conditions:
 #Simulating initialising
 cond = Conditions()
 epsilon, delta, g = cond.parameters(0, 1)
-cond.domain(Lx=100, Ly=100, resolution=1024)
+cond.domain(Lx=20, Ly=20, resolution=1024) #small system size is good for faster simulation
 
 u = cond.initial_condition()
 u_hat = np.fft.fft2(u)
