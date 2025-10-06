@@ -7,7 +7,7 @@ class Conditions:
         pass
 
     def parameters(self, val1, val2):
-        self.epsilon = np.random.uniform(0, 0.3)  # small random growth
+        self.epsilon = 0.7 #np.random.uniform(0, 0.3)  # small random growth
         self.delta = val1
         self.g = val2
         return self.epsilon, self.delta, self.g
@@ -41,22 +41,22 @@ class Conditions:
 
     def nonlinear(self, u):
         # nonlinear term
-        N_hat = np.fft.fft2(-self.g * u**3)
+        N_hat = np.fft.fft2(-self.g * u**3 + self.delta * u**2)
         return N_hat
 
 
 #Simulating initialising
 cond = Conditions()
-epsilon, delta, g = cond.parameters(0, 1)
-cond.domain(Lx=20, Ly=20, resolution=1024) #small system size is good for faster simulation
+epsilon, delta, g = cond.parameters(0.1, 1)
+cond.domain(Lx=150, Ly=150, resolution=512) #small system size is good for faster simulation
 
 u = cond.initial_condition()
 u_hat = np.fft.fft2(u)
 linear = cond.linear()
 
 # Simulation parameters
-dt = 0.001   # take it high value = 0.1 
-T = 1000.0    
+dt = 0.1   # take it high value = 0.1 
+T = 100.0    
 steps = int(T / dt)
 
 #setting up plots
@@ -82,15 +82,25 @@ for i in range(steps):
 
 plt.ioff()
 plt.show()
-
-#plotting
+# plotting
 final_u = np.fft.ifft2(u_hat).real
 
-plt.figure(figsize=(10, 4))
+plt.figure(figsize=(12, 5))
+
+# Final pattern
 plt.subplot(1, 2, 1)
 plt.imshow(final_u, cmap="RdBu", origin="lower", interpolation="bilinear",
            extent=[0, cond.Lx, 0, cond.Ly])
 plt.colorbar()
 plt.title("Final Pattern")
 
+# Fourier spectrum
 plt.subplot(1, 2, 2)
+u_hat_final = np.fft.fft2(final_u)
+plt.imshow(np.log1p(np.abs(np.fft.fftshift(u_hat_final))), cmap="viridis",
+           origin="lower", extent=[-cond.Lx/2, cond.Lx/2, -cond.Ly/2, cond.Ly/2])
+plt.colorbar()
+plt.title("Fourier Spectrum")
+
+plt.tight_layout()
+plt.show()
