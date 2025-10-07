@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 class Conditions:
-    def __init__(self):
+    def _init_(self):
         pass
 
     def parameters(self, val1, val2):
-        self.epsilon = 0.7  # small random growth
-        self.delta = val1
+        self.epsilon = np.random.uniform(0, 1)
+        self.delta = np.random.uniform(0, val1)  # <-- randomized delta
         self.g = val2
         return self.epsilon, self.delta, self.g
 
@@ -26,7 +26,7 @@ class Conditions:
         kx = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dx)
         ky = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dy)
         kx, ky = np.meshgrid(kx, ky, indexing='ij')
-        self.k2 = kx**2 + ky**2
+        self.k2 = kx*2 + ky*2
         return self.mesh
 
     def initial_condition(self):
@@ -38,7 +38,7 @@ class Conditions:
         return L
 
     def nonlinear(self, u):
-        N_hat = np.fft.fft2(-self.g * u**3 + self.delta * u**2)
+        N_hat = np.fft.fft2(-self.g * u*3 + self.delta * u*2)
         return N_hat
 
 # Initialize
@@ -68,10 +68,11 @@ fig.colorbar(im, ax=ax)
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 
+#simulation loop
+
 finished = False
 total_steps = 0
 
-# ======= MAIN SIMULATION LOOP =======
 while not finished:
     for i in range(steps):
         u = np.fft.ifft2(u_hat).real
@@ -95,7 +96,7 @@ while not finished:
         if i % 50 == 0:
             im.set_data(u)
             im.set_clim(u.min(), u.max())
-            ax.set_title(f"t = {(total_steps + i)*dt:.2f}, ε = {epsilon:.3f}")
+            ax.set_title(f"t = {(total_steps + i)*dt:.2f}, ε = {epsilon:.3f}, δ = {delta:.3f}")
             plt.pause(0.01)
 
     total_steps += steps
@@ -116,7 +117,7 @@ plt.subplot(1, 2, 1)
 plt.imshow(final_u, cmap="RdBu", origin="lower", interpolation="bilinear",
            extent=[0, cond.Lx, 0, cond.Ly])
 plt.colorbar()
-plt.title("Final Pattern")
+plt.title(f"Final Pattern (ε = {epsilon:.3f}, δ = {delta:.3f})")
 
 # Fourier spectrum
 plt.subplot(1, 2, 2)
