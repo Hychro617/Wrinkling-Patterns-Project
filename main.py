@@ -7,7 +7,7 @@ class Conditions:
         pass
 
     def parameters(self, val1, val2):
-        self.epsilon = 1.3  # small random growth
+        self.epsilon = 0.7  # small random growth
         self.delta = val1
         self.g = val2
         return self.epsilon, self.delta, self.g
@@ -68,28 +68,38 @@ fig.colorbar(im, ax=ax)
 ax.set_xlabel('x')
 ax.set_ylabel('y')
 
-# Simulation loop
-for i in range(steps):
-    u = np.fft.ifft2(u_hat).real
-    u_hat_new = (u_hat + dt * cond.nonlinear(u)) / (1 - dt * linear)
+finished = False
+total_steps = 0
 
-    # Check for blow-up
-    if not np.isfinite(u).all() or not np.isfinite(u_hat_new).all() or np.max(np.abs(u_hat_new)) > 1e8:
-        print(f"Instability detected at step {i}, stopping simulation.")
-        break
+# ======= MAIN SIMULATION LOOP =======
+while not finished:
+    for i in range(steps):
+        u = np.fft.ifft2(u_hat).real
+        u_hat_new = (u_hat + dt * cond.nonlinear(u)) / (1 - dt * linear)
 
-    # Add the last stable one to the queue
-    queue.append({'u': np.copy(u), 'u_hat': np.copy(u_hat_new)})
+        # Check for blow-up or NaN
+        if (not np.isfinite(u).all() or
+            not np.isfinite(u_hat_new).all() or
+            np.max(np.abs(u_hat_new)) > 1e8):
+            print(f"Instability detected at step {total_steps + i}, stopping simulation.")
+            finished = True
+            break
 
-    # Update for next iteration
-    u_hat = u_hat_new
+        # Add the last stable one to the queue
+        queue.append({'u': np.copy(u), 'u_hat': np.copy(u_hat_new)})
 
-    # Update live plot every 50 steps
-    if i % 50 == 0:
-        im.set_data(u)
-        im.set_clim(u.min(), u.max())
-        ax.set_title(f"t = {i*dt:.2f}, ε = {epsilon:.3f}")
-        plt.pause(0.01)
+        # Update for next iteration
+        u_hat = u_hat_new
+
+        # Update live plot every 50 steps
+        if i % 50 == 0:
+            im.set_data(u)
+            im.set_clim(u.min(), u.max())
+            ax.set_title(f"t = {(total_steps + i)*dt:.2f}, ε = {epsilon:.3f}")
+            plt.pause(0.01)
+
+    total_steps += steps
+    T += 10  # Increase simulation time window
 
 plt.ioff()
 plt.show()
