@@ -2,12 +2,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 class Conditions:
-
     def __init__(self):
         pass
 
     def parameters(self, val1, val2):
-        self.epsilon = 0.7 #np.random.uniform(0, 0.3)  # small random growth
+        self.epsilon = 1.6 #np.random.uniform(0, 0.3)  # small random growth
         self.delta = val1
         self.g = val2
         return self.epsilon, self.delta, self.g
@@ -22,7 +21,7 @@ class Conditions:
         self.dy = Ly / (self.N - 1)
         self.mesh = np.meshgrid(x, y, indexing='ij') 
 
-        # wavenumbers
+        #wavenumbers
         kx = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dx)
         ky = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dy)
         kx, ky = np.meshgrid(kx, ky, indexing='ij')
@@ -47,8 +46,8 @@ class Conditions:
 
 #Simulating initialising
 cond = Conditions()
-epsilon, delta, g = cond.parameters(0.1, 1)
-cond.domain(Lx=150, Ly=150, resolution=512) #small system size is good for faster simulation
+epsilon, delta, g = cond.parameters(0.7, 1)
+cond.domain(Lx=150, Ly=150, resolution=1024) #small system size is good for faster simulation
 
 u = cond.initial_condition()
 u_hat = np.fft.fft2(u)
@@ -71,8 +70,17 @@ ax.set_ylabel('y')
 #simulation
 for i in range(steps):
     u = np.fft.ifft2(u_hat).real
+    
+    if not np.isfinite(u).all():
+        print(f"NaN detected at step {i}, stopping simulation.")
+        break
+
     N_hat = cond.nonlinear(u)
     u_hat = (u_hat + dt * N_hat) / (1 - dt * linear)
+
+    if not np.isfinite(u_hat).all():
+        print(f"NaN detected at step {i}, stopping simulation.")
+        break
 
     if i % 50 == 0:
         im.set_data(u)
