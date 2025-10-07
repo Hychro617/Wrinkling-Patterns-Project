@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 class Conditions:
-    def _init_(self):
+    def __init__(self):
         pass
 
     def parameters(self, val1, val2):
@@ -26,7 +26,7 @@ class Conditions:
         kx = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dx)
         ky = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dy)
         kx, ky = np.meshgrid(kx, ky, indexing='ij')
-        self.k2 = kx*2 + ky*2
+        self.k2 = kx**2 + ky**2
         return self.mesh
 
     def initial_condition(self):
@@ -38,7 +38,7 @@ class Conditions:
         return L
 
     def nonlinear(self, u):
-        N_hat = np.fft.fft2(-self.g * u*3 + self.delta * u*2)
+        N_hat = np.fft.fft2(-self.g * u**3 + self.delta * u**2)
         return N_hat
 
 # Initialize
