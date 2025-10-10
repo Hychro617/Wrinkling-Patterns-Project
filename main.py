@@ -8,8 +8,8 @@ class Conditions:
 
     def parameters(self, val1, val2):
         self.epsilon = np.random.uniform(0, 1)
-        self.delta = np.random.uniform(0, val1)  # <-- randomized delta
-        self.g = val2
+        self.delta = np.random.uniform(0, val1)  
+        self.g = np.random.uniform(0, val2)  
         return self.epsilon, self.delta, self.g
 
     def domain(self, Lx, Ly, resolution):
