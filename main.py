@@ -1,130 +1,207 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from collections import deque
+from pathlib import Path 
+import os
+import random
+import tensorflow as tf
+
+SEED = 42
+os.environ['PYTHONHASHSEED'] = str(SEED)
+random.seed(SEED)
+np.random.seed(SEED)
+tf.random.set_seed(SEED)
 
 class Conditions:
-    def __init__(self):
-        pass
-
-    def parameters(self, val1, val2):
-        self.epsilon = np.random.uniform(0, 1)
-        self.delta = np.random.uniform(0, val1)  
-        self.g = np.random.uniform(0, val2)  
-        return self.epsilon, self.delta, self.g
-
-    def domain(self, Lx, Ly, resolution):
+    def __init__(self, epsilon, delta, g, Lx, Ly, N):
+        self.epsilon = epsilon
+        self.delta = delta
+        self.g = g
+        
         self.Lx, self.Ly = Lx, Ly
-        self.N = resolution
-
+        self.N = N
+        
         x = np.linspace(0, Lx, self.N)
         y = np.linspace(0, Ly, self.N)
         self.dx = Lx / (self.N - 1)
         self.dy = Ly / (self.N - 1)
-        self.mesh = np.meshgrid(x, y, indexing='ij') 
+        self.mesh = np.meshgrid(x, y, indexing='ij')
 
-        # Wavenumbers
-        kx = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dx)
-        ky = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dy)
-        kx, ky = np.meshgrid(kx, ky, indexing='ij')
-        self.k2 = kx**2 + ky**2
-        return self.mesh
+        self.kx = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dx)
+        self.ky = 2 * np.pi * np.fft.fftfreq(self.N, d=self.dy)
+        self.kx, self.ky = np.meshgrid(self.kx, self.ky, indexing='ij')
+        self.k2 = self.kx**2 + self.ky**2
+        
+
+        self.linear = self.epsilon - (1 - self.k2)**2
+        
+        print(f"  ε={self.epsilon:.3f}, δ={self.delta:.3f}, g(γ)={self.g:.3f}")
+        print(f"  Domain: {self.Lx}x{self.Ly}, Resolution: {self.N}x{self.N}")
 
     def initial_condition(self):
         u = np.random.uniform(-np.sqrt(self.epsilon), np.sqrt(self.epsilon), (self.N, self.N))
         return u
 
-    def linear(self):
-        L = self.epsilon - (1 - self.k2)**2
-        return L
-
     def nonlinear(self, u):
-        N_hat = np.fft.fft2(-self.g * u**3 + self.delta * u**2)
-        return N_hat
+        N_real = -self.delta * u**2 - self.g * u**3
+        return np.fft.fft2(N_real)
 
-# Initialize
-cond = Conditions()
-epsilon, delta, g = cond.parameters(0.7, 1)
-cond.domain(Lx=150, Ly=150, resolution=1024)
+def generate_steady_state_data():
+    #manually adjust to generate image with particular parameters -> can randomise
+    Epsilon = 0.6
+    Delta = 0.406
+    Gamma = 0.196
+    Lx, Ly = 50.0, 50.0
+    Resolution = 100
+    dt = 0.1
+    total_time = 2000.0 # Run for longer to ensure steady state
+    
+    # detecting steady state to stop simulation
+    Steadystate_tol = 1e-5  # Tolerance
+    History_len = 100       # Steps to average for |du/dt|
+    Plot_freq = 100         # Update plot less often to speed up
+    
+    # Non-Hard Coded Data folder relative to the main script
+    ss_data_dir = Path(__file__).parent / "data"
+    # File paths
+    ss_data_filename = ss_data_dir / "pattern_eps0.600_delta0.406_gamma0.196_PINN.npy"
+    ss_plot_filename = ss_data_dir / "pattern_eps0.600_delta0.406_gamma0.196_PINN.png"
+    # Ensure the data directory exists
+    ss_data_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Ensured directory exists:\n - {ss_data_dir}")
 
-u = cond.initial_condition()
-u_hat = np.fft.fft2(u)
-linear = cond.linear()
+    cond = Conditions(
+        epsilon=Epsilon, delta=Delta, g=Gamma,
+        Lx=Lx, Ly=Ly, N=Resolution
+    )
+    
+    u = cond.initial_condition()
+    u_hat = np.fft.fft2(u)
 
-# Sliding window for last few steps
-queue_size = 2
-queue = deque(maxlen=queue_size)
+    steps_total = int(total_time / dt)
+    change_history = deque(maxlen=History_len)
+    u_prev = u.copy()
 
-# Simulation parameters
-dt = 0.1
-T = 100.0
-steps = int(T / dt)
+    plt.ion()
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    
+    # Plot 1: Real space pattern
+    im1 = ax1.imshow(u, cmap="RdBu", origin="lower", interpolation="bilinear",
+                     extent=[0, cond.Lx, 0, cond.Ly])
+    fig.colorbar(im1, ax=ax1, fraction=0.046, pad=0.04)
+    ax1.set_xlabel('x'); ax1.set_ylabel('y')
+    ax1.set_title(f't = {0.0:.1f}, ε = {cond.epsilon:.3f}')
+    
+    # Plot 2: Fourier space (FFT)
+    # Calculate initial FFT data for plot
+    fft_plot_data = np.log10(1 + np.abs(np.fft.fftshift(u_hat)))
+    im2 = ax2.imshow(fft_plot_data, cmap="inferno", origin="lower", 
+                     extent=[cond.kx.min(), cond.kx.max(), cond.ky.min(), cond.ky.max()])
+    fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)
+    ax2.set_xlabel('kx (shifted)'); ax2.set_ylabel('ky (shifted)')
+    ax2.set_title('log10 | 1 + FFT(u)|')
+    
+    plt.tight_layout()
 
-# Setup interactive plot
-plt.ion()
-fig, ax = plt.subplots()
-im = ax.imshow(u, cmap="RdBu", origin="lower", interpolation="bilinear",
-               extent=[0, cond.Lx, 0, cond.Ly])
-fig.colorbar(im, ax=ax)
-ax.set_xlabel('x')
-ax.set_ylabel('y')
-
-#simulation loop
-
-finished = False
-total_steps = 0
-
-while not finished:
-    for i in range(steps):
+    print("--- Starting Simulation ---")
+    print(f"Running until t={total_time} or steady state (avg |du/dt| < {Steadystate_tol:.1e})")
+    
+    i = 0
+    current_time = 0.0
+    avg_change = 0.0
+    
+    while True:
+        current_time = i * dt
+        
+        # Get real-space 'u' for this timestep
         u = np.fft.ifft2(u_hat).real
-        u_hat_new = (u_hat + dt * cond.nonlinear(u)) / (1 - dt * linear)
+        
+        # --- Steady state check ---
+        if i > 0:
+            change = np.mean(np.abs(u - u_prev)) / dt
+            change_history.append(change)
+            if len(change_history) == change_history.maxlen:
+                avg_change = np.mean(change_history)
+        
+        u_prev = u.copy() # Store current u for next step's comparison
+        
+        # Calculate nonlinear term in Fourier space
+        N_hat = cond.nonlinear(u) 
+        # Evolve u_hat
+        u_hat_new = (u_hat + dt * N_hat) / (1 - dt * cond.linear)
 
-        # Check for blow-up or NaN
-        if (not np.isfinite(u).all() or
-            not np.isfinite(u_hat_new).all() or
-            np.max(np.abs(u_hat_new)) > 1e8):
-            print(f"Instability detected at step {total_steps + i}, stopping simulation.")
-            finished = True
-            break
-
-        # Add the last stable one to the queue
-        queue.append({'u': np.copy(u), 'u_hat': np.copy(u_hat_new)})
-
-        # Update for next iteration
+        # --- Update for next iteration ---
         u_hat = u_hat_new
 
-        # Update live plot every 50 steps
-        if i % 50 == 0:
-            im.set_data(u)
-            im.set_clim(u.min(), u.max())
-            ax.set_title(f"t = {(total_steps + i)*dt:.2f}, ε = {epsilon:.3f}, δ = {delta:.3f}")
+        # --- Update live plot ---
+        if i % Plot_freq == 0:
+            im1.set_data(u)
+            im1.set_clim(u.min(), u.max())
+            if i > change_history.maxlen:
+                title_str = f"t = {current_time:.1f}, |du/dt|~{avg_change:.2e}"
+            else:
+                title_str = f"t = {current_time:.1f}, (collecting stats)"
+            ax1.set_title(title_str)
+            
+            fft_plot_data = np.log10(1 + np.abs(np.fft.fftshift(u_hat)))
+            im2.set_data(fft_plot_data)
+            im2.set_clim(fft_plot_data.min(), fft_plot_data.max())
+
             plt.pause(0.01)
+    
+        if (not np.isfinite(u).all() or
+            not np.isfinite(u_hat).all() or
+            np.max(np.abs(u_hat)) > 1e8):
+            print(f"Instability detected at step {i}, stopping simulation.")
+            break 
 
-    total_steps += steps
-    T += 10  # Increase simulation time window
+        if i > change_history.maxlen and avg_change < Steadystate_tol:
+            print(f"\n--- Steady state reached at t = {current_time:.1f} ---")
+            print(f"Average change |du/dt| = {avg_change:.2e} < {Steadystate_tol:.2e}")
+            break 
 
-plt.ioff()
-plt.show()
+        if i >= steps_total:
+            print(f"\n--- Max time reached at t = {current_time:.1f} ---")
+            print("Simulation finished without reaching steady state tolerance.")
+            break 
 
-# Plot the last stable time step
-last_good = queue[-1]  # last stable step
-final_u = np.fft.ifft2(last_good['u_hat']).real
-final_u_hat = last_good['u_hat']
 
-plt.figure(figsize=(12, 5))
+        i += 1
+    
+    plt.ioff()
 
-# Final real-space pattern
-plt.subplot(1, 2, 1)
-plt.imshow(final_u, cmap="RdBu", origin="lower", interpolation="bilinear",
-           extent=[0, cond.Lx, 0, cond.Ly])
-plt.colorbar()
-plt.title(f"Final Pattern (ε = {epsilon:.3f}, δ = {delta:.3f})")
+    # Save the final steady state images
+    u_ss = np.fft.ifft2(u_hat).real
+    #This does the numpy array
+    try:
+        ss_data_path = ss_data_dir / ss_data_filename 
+        
+        np.save(ss_data_path, u_ss)
+        print(f"\n Saved SS data to:\n{ss_data_path}")
+    except Exception as e:
+        print(f"\nERROR saving SS data: {e}")
 
-# Fourier spectrum
-plt.subplot(1, 2, 2)
-plt.imshow(np.log1p(np.abs(np.fft.fftshift(final_u_hat))), cmap="viridis",
-           origin="lower", extent=[-cond.Lx/2, cond.Lx/2, -cond.Ly/2, cond.Ly/2])
-plt.colorbar()
-plt.title("Fourier Spectrum")
 
-plt.tight_layout()
-plt.show()
+    try:
+        # Update plot one last time to show final state
+        im1.set_data(u_ss)
+        im1.set_clim(u_ss.min(), u_ss.max())
+        ax1.set_title(f"Steady State at t = {current_time:.1f}, |du/dt|~{avg_change:.2e}")
+        fft_plot_data = np.log10(1 + np.abs(np.fft.fftshift(u_hat)))
+        im2.set_data(fft_plot_data)
+        im2.set_clim(fft_plot_data.min(), fft_plot_data.max())
+        ss_plot_path = ss_data_dir / ss_plot_filename
+        fig.savefig(ss_plot_path, dpi=150, bbox_inches='tight')
+        print(f"Successfully saved FINAL SS plot to:\n{ss_plot_path}")
+        
+    except Exception as e:
+        print(f"\nERROR saving SS plot: {e}")
+
+    # Keep the plot window open
+    plt.show()
+    
+    return
+
+# Main execution
+if __name__ == "__main__":
+    generate_steady_state_data()
