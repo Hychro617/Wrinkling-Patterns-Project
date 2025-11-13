@@ -48,9 +48,9 @@ class Conditions:
 
 def generate_steady_state_data():
     #manually adjust to generate image with particular parameters -> can randomise
-    Epsilon = 0.6
-    Delta = 0.406
-    Gamma = 0.196
+    Epsilon = 0.1
+    Delta = 0.1
+    Gamma = 0.1
     Lx, Ly = 50.0, 50.0
     Resolution = 100
     dt = 0.1
@@ -94,12 +94,12 @@ def generate_steady_state_data():
     
     # Plot 2: Fourier space (FFT)
     # Calculate initial FFT data for plot
-    fft_plot_data = np.log10(1 + np.abs(np.fft.fftshift(u_hat)))
+    fft_plot_data = np.log10(1e-8 + np.abs(np.fft.fftshift(u_hat)))
     im2 = ax2.imshow(fft_plot_data, cmap="inferno", origin="lower", 
                      extent=[cond.kx.min(), cond.kx.max(), cond.ky.min(), cond.ky.max()])
     fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)
     ax2.set_xlabel('kx (shifted)'); ax2.set_ylabel('ky (shifted)')
-    ax2.set_title('log10 | 1 + FFT(u)|')
+    ax2.set_title('log10 | FFT(u)|')
     
     plt.tight_layout()
 
@@ -143,7 +143,7 @@ def generate_steady_state_data():
                 title_str = f"t = {current_time:.1f}, (collecting stats)"
             ax1.set_title(title_str)
             
-            fft_plot_data = np.log10(1 + np.abs(np.fft.fftshift(u_hat)))
+            fft_plot_data = np.log10(1e-8 + np.abs(np.fft.fftshift(u_hat)))
             im2.set_data(fft_plot_data)
             im2.set_clim(fft_plot_data.min(), fft_plot_data.max())
 
@@ -187,7 +187,7 @@ def generate_steady_state_data():
         im1.set_data(u_ss)
         im1.set_clim(u_ss.min(), u_ss.max())
         ax1.set_title(f"Steady State at t = {current_time:.1f}, |du/dt|~{avg_change:.2e}")
-        fft_plot_data = np.log10(1 + np.abs(np.fft.fftshift(u_hat)))
+        fft_plot_data = np.log10(1e-8 + np.abs(np.fft.fftshift(u_hat)))
         im2.set_data(fft_plot_data)
         im2.set_clim(fft_plot_data.min(), fft_plot_data.max())
         ss_plot_path = ss_data_dir / ss_plot_filename
