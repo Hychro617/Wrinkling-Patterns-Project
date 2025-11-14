@@ -48,12 +48,13 @@ class Conditions:
 
 def generate_steady_state_data():
     #manually adjust to generate image with particular parameters -> can randomise
-    Epsilon = 0.1
-    Delta = 0.1
-    Gamma = 0.1
-    Lx, Ly = 50.0, 50.0
-    Resolution = 100
-    dt = 0.1
+    Epsilon = 0.6
+    Delta = 0.406
+    Gamma = 0.196
+    # In your generate_steady_state_data() function:
+    Lx, Ly = 16 * np.pi, 16 * np.pi  # WAS: 16, 16
+    Resolution = 64                   # WAS: 100
+    dt = 0.05                         # Smaller timestep for stability
     total_time = 2000.0 # Run for longer to ensure steady state
     
     # detecting steady state to stop simulation
@@ -95,7 +96,7 @@ def generate_steady_state_data():
     # Plot 2: Fourier space (FFT)
     # Calculate initial FFT data for plot
     fft_plot_data = np.log10(1e-8 + np.abs(np.fft.fftshift(u_hat)))
-    im2 = ax2.imshow(fft_plot_data, cmap="inferno", origin="lower", 
+    im2 = ax2.imshow(fft_plot_data, cmap="plasma", origin="lower", 
                      extent=[cond.kx.min(), cond.kx.max(), cond.ky.min(), cond.ky.max()])
     fig.colorbar(im2, ax=ax2, fraction=0.046, pad=0.04)
     ax2.set_xlabel('kx (shifted)'); ax2.set_ylabel('ky (shifted)')
